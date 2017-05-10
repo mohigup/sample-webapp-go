@@ -4,6 +4,9 @@ import (
 	"net/http"
 	"html/template"
 	"log"
+	"os"
+	"io/ioutil"
+	"github.com/mohigup/SimpleWebAppGo/server/viewmodel"
 )
 
 func main(){
@@ -14,13 +17,23 @@ func main(){
 		// slice slash
 		requestedFile := r.URL.Path[1:]
 		// get name of templates
-		t := templates.Lookup(requestedFile + ".html")
+		t := templates[requestedFile + ".html"]
+		// data driven
+		var context interface{}
+		switch requestedFile {
+		case "shop":
+			context = viewmodel.NewShop()
+		default:
+			context = viewmodel.NewBase()
+		}
 		// error handling
 		if t!=nil{
-			err := t.Execute(w,nil)
+			err := t.Execute(w,context)
 			if err != nil{
 				log.Println(err)
 			}
+		} else{
+			w.WriteHeader(404)
 		}
 	})
 
@@ -29,13 +42,35 @@ func main(){
 	http.ListenAndServe(":8000",nil)
 }
 
-func populateTemplates() *template.Template{
-	// container for all templates
-	result := template.New("templates")
-	// path for templates
-	const BasePath  = "templates"
-	// parse templates for result, handles error
-	// any file ending with .html will be parsed
-	template.Must(result.ParseGlob(BasePath+"/*.html"))
+func populateTemplates() map[string]*template.Template{
+	result := make(map[string]*template.Template)
+	const basePath = "templates"
+	layout := template.Must(template.ParseFiles(basePath + "/_layout.html"))
+	template.Must(layout.ParseFiles(basePath+"/_header.html", basePath+"/_footer.html"))
+	dir, err := os.Open(basePath + "/content")
+	if err != nil {
+		panic("Failed to open template blocks directory: " + err.Error())
+	}
+	fis, err := dir.Readdir(-1)
+	if err != nil {
+		panic("Failed to read contents of content directory: " + err.Error())
+	}
+	for _, fi := range fis {
+		f, err := os.Open(basePath + "/content/" + fi.Name())
+		if err != nil {
+			panic("Failed to open template '" + fi.Name() + "'")
+		}
+		content, err := ioutil.ReadAll(f)
+		if err != nil {
+			panic("Failed to read content from file '" + fi.Name() + "'")
+		}
+		f.Close()
+		tmpl := template.Must(layout.Clone())
+		_, err = tmpl.Parse(string(content))
+		if err != nil {
+			panic("Failed to parse contents of '" + fi.Name() + "' as template")
+		}
+		result[fi.Name()] = tmpl
+	}
 	return result
 }
