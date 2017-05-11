@@ -3,42 +3,17 @@ package main
 import (
 	"net/http"
 	"html/template"
-	"log"
 	"os"
 	"io/ioutil"
-	"github.com/mohigup/SimpleWebAppGo/server/viewmodel"
+	"github.com/mohigup/SimpleWebAppGo/server/controller"
 )
 
 func main(){
 
 	templates := populateTemplates()
-	// handle every URL
-	http.HandleFunc("/",func(w http.ResponseWriter, r *http.Request){
-		// slice slash
-		requestedFile := r.URL.Path[1:]
-		// get name of templates
-		t := templates[requestedFile + ".html"]
-		// data driven
-		var context interface{}
-		switch requestedFile {
-		case "shop":
-			context = viewmodel.NewShop()
-		default:
-			context = viewmodel.NewBase()
-		}
-		// error handling
-		if t!=nil{
-			err := t.Execute(w,context)
-			if err != nil{
-				log.Println(err)
-			}
-		} else{
-			w.WriteHeader(404)
-		}
-	})
-
-	http.Handle("/img/",http.FileServer(http.Dir("public")))
-	http.Handle("/css/",http.FileServer(http.Dir("public")))
+	println("reached")
+	// call startup to pass the templates - A
+	controller.StartUp(templates)
 	http.ListenAndServe(":8000",nil)
 }
 
